@@ -1,0 +1,21 @@
+{
+  "name": "KaiDo",
+  "description": "User friendly To-Do List for KaiOS",
+	"ime_default_softkey_bar": true,
+	"cursor": false,
+  "launch_path": "/index.html",
+  "chrome": { "navigation": false },
+  "developer": {
+    "name": "RespawnMaster With the help of ChatGPT",
+    "url": "http://mackapp.com.br/portifolio/"
+  },
+	"icons": {
+    "56": "/icon56.png",
+     "112": "/icon112.png",
+	"60": "/icon60.png",
+	"90": "/icon90.png",
+	"120": "/icon120.png",
+	"128": "/icon128.png",
+	"256": "/icon256.png"
+  }
+}
