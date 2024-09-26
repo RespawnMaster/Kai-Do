@@ -4,4 +4,4 @@ Hello, this is my first project using ChatGPT. I am planning on learning Html, C
 --For this Next Section Add your username if you are the first to try a device :)
 
 Tested and Working on:
-Nokia 6400 4G (RespawnMaster)
+  -Nokia 6400 4G (RespawnMaster)
