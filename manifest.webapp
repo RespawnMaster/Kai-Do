@@ -9,9 +9,8 @@
     "name": "RespawnMaster With the help of ChatGPT",
     "url": "https://github.com/RespawnMaster/Kai-Do"
   },
-	"icons": {
+  "icons": {
     "56": "/icon56.png",
-     "112": "/icon112.png",
-
+    "112": "/icon112.png"
   }
 }
