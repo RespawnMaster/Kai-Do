@@ -5,4 +5,5 @@ Hello, this is my first project using ChatGPT. I am planning on learning Html, C
 
 Tested and Working on:
   -Nokia 6400 4G (RespawnMaster)
+
   -[KaiOSRT Simulator v2.5 for Linux](https://s3.amazonaws.com/kaicloudsimulatordl/developer-portal/simulator/Kaiosrt_ubuntu.tar.bz2) (MrMasterKeyboard)
