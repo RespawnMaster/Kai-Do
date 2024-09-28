@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kai-Do</title>
-  <!-- Link to Google Fonts for Open Sans -->
+  <title>Kao-Do</title>
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400&display=swap" rel="stylesheet">
   <style>
     * {
@@ -52,7 +51,8 @@
     }
 
     li.selected {
-      background-color: #cce5ff; /* Highlight color when selected */
+      background-color: #d2f6d2; /* Even lighter green for selected tasks */
+      border: 2px solid black; /* Black border for selected tasks */
     }
 
     li.completed {
@@ -73,11 +73,6 @@
       border: 1px solid #ccc;
     }
 
-    #new-task.selected {
-      border: 2px solid #000;
-      outline: none;
-    }
-
     #softkeys {
       display: flex;
       justify-content: space-between;
@@ -94,14 +89,18 @@
   </style>
 </head>
 <body>
-  <header>Kao-Do</header> <!-- Header with lime green background -->
+  <header>Kao-Do <span id="page-number" style="float:right;"></span></header>
 
   <div class="todo-container">
     <ul id="todo-list"></ul>
   </div>
   
-  <div class="input-container">
+  <div class="input-container" id="input-container" style="display: none;">
     <input type="text" id="new-task" placeholder="Enter new task" />
+  </div>
+
+  <div class="input-container" id="settings-input-container" style="display: none;">
+    <input type="text" id="settings-input" placeholder="Set tasks per page" />
   </div>
 
   <div id="softkeys">
@@ -114,42 +113,103 @@
     document.addEventListener('DOMContentLoaded', function () {
       const todoList = document.getElementById('todo-list');
       const newTaskInput = document.getElementById('new-task');
+      const settingsInput = document.getElementById('settings-input');
+      const inputContainer = document.getElementById('input-container');
+      const settingsInputContainer = document.getElementById('settings-input-container');
+      const leftSoftkey = document.getElementById('left-softkey');
+      const centerSoftkey = document.getElementById('center-softkey');
+      const rightSoftkey = document.getElementById('right-softkey');
+      const pageNumber = document.getElementById('page-number');
+
       let selectedTaskIndex = -1;
-      let inputSelected = false;
+      let inputOpen = false;
+      let settingsInputOpen = false;
+      let currentPage = 1;
+      let tasksPerPage = 6; // Default tasks per page
+      let allTasks = [];
+      let taskLog = []; // Log to keep track of task states and positions
 
       // Load tasks from localStorage
       function loadTasks() {
         const savedTasks = JSON.parse(localStorage.getItem('tasks')) || [];
-        savedTasks.forEach(task => {
-          const li = document.createElement('li');
-          li.textContent = task.text;
-          if (task.completed) {
-            li.classList.add('completed');
-          }
-          todoList.appendChild(li);
-        });
+        allTasks = savedTasks;
+        if (!allTasks.some(task => task.text === "Settings")) {
+          addSettingsTask(); // Ensure "Settings" task is always present
+        }
+        initializeLog(); // Initialize log from loaded tasks
+        renderTasks();
       }
 
       // Save tasks to localStorage
       function saveTasks() {
-        const tasks = [...todoList.children].map(li => ({
-          text: li.textContent,
-          completed: li.classList.contains('completed')
+        localStorage.setItem('tasks', JSON.stringify(allTasks));
+        localStorage.setItem('taskLog', JSON.stringify(taskLog)); // Save task log
+      }
+
+      // Add "Settings" task
+      function addSettingsTask() {
+        allTasks.push({ text: "Settings", completed: false }); // Ensure Settings task is always present
+      }
+
+      // Initialize task log based on current tasks
+      function initializeLog() {
+        taskLog = allTasks.map((task, index) => ({
+          text: task.text,
+          completed: task.completed,
+          position: index
         }));
-        localStorage.setItem('tasks', JSON.stringify(tasks));
       }
 
       // Add task
       function addTask() {
         const taskText = newTaskInput.value.trim();
         if (taskText !== '') {
-          const li = document.createElement('li');
-          li.textContent = taskText;
-          todoList.appendChild(li);
+          allTasks.unshift({ text: taskText, completed: false }); // Add to the top of the list
           newTaskInput.value = '';
-          inputSelected = false;
-          updateSelectedTask();
+          inputOpen = false;
+          closeInput();
           saveTasks(); // Save tasks after adding a new task
+          renderTasks(); // Re-render tasks
+        }
+      }
+
+      // Render tasks to display the current page's tasks
+      function renderTasks() {
+        todoList.innerHTML = ''; // Clear the list before rendering
+
+        // Sort tasks: completed last, including "Settings"
+        const visibleTasks = allTasks.slice(); // Copy all tasks
+
+        // Calculate visible tasks for the current page
+        const startIndex = (currentPage - 1) * tasksPerPage;
+        const endIndex = startIndex + tasksPerPage;
+
+        // Render visible tasks
+        visibleTasks.slice(startIndex, endIndex).forEach((task, index) => {
+          const li = document.createElement('li');
+          li.textContent = task.text;
+          if (task.completed) {
+            li.classList.add('completed');
+          }
+          if (index === selectedTaskIndex) {
+            li.classList.add('selected'); // Highlight selected task
+          }
+          todoList.appendChild(li);
+        });
+
+        // Display the current page number
+        pageNumber.textContent = currentPage;
+
+        // Check if "Settings" is on the current page and adjust the selected task index if necessary
+        const settingsIndex = visibleTasks.findIndex(task => task.text === "Settings");
+        if (settingsIndex >= startIndex && settingsIndex < endIndex) {
+          // Settings is on the current page, so we can allow selection
+          if (selectedTaskIndex >= 0 && selectedTaskIndex < tasksPerPage) {
+            updateSelectedTask();
+          }
+        } else {
+          // Settings is on a different page
+          selectedTaskIndex = -1; // Deselect any currently selected task
         }
       }
 
@@ -158,77 +218,152 @@
         [...todoList.children].forEach((li, index) => {
           li.classList.toggle('selected', index === selectedTaskIndex);
         });
-
-        if (inputSelected) {
-          newTaskInput.classList.add('selected');
-          newTaskInput.focus(); // Focus on the input when selected
-        } else {
-          newTaskInput.classList.remove('selected');
-        }
       }
 
       // Select task or focus input
       function selectTask() {
         if (selectedTaskIndex >= 0 && todoList.children[selectedTaskIndex]) {
           const selectedLi = todoList.children[selectedTaskIndex];
-          selectedLi.classList.toggle('completed'); // Toggle completed status
-          if (selectedLi.classList.contains('completed')) {
-            todoList.appendChild(selectedLi); // Move to the bottom if completed
+          const taskIndex = selectedTaskIndex + (currentPage - 1) * tasksPerPage;
+
+          if (allTasks[taskIndex].text === "Settings") {
+            openSettingsInput(); // Open settings input if Settings is selected
           } else {
-            // If uncompleted, move it back up
-            todoList.insertBefore(selectedLi, todoList.children[selectedTaskIndex - 1] || null);
+            // Toggle the completed status of only the selected task
+            allTasks[taskIndex].completed = !allTasks[taskIndex].completed; // Toggle completion state
+            selectedTaskIndex = -1; // Deselect the task
+            saveTasks(); // Save tasks after toggling
+            renderTasks(); // Re-render tasks to reflect the change
           }
-          updateSelectedTask();
-          saveTasks(); // Save tasks after selecting a task
-        } else if (inputSelected) {
-          newTaskInput.focus(); // Focus the input if it is selected
+        }
+      }
+
+      // Open task input
+      function openInput() {
+        inputContainer.style.display = 'block'; // Show input container
+        newTaskInput.focus(); // Focus the new task input
+        inputOpen = true; // Mark input as open
+        leftSoftkey.textContent = 'Close'; // Change left softkey to 'Close'
+        centerSoftkey.textContent = 'Add'; // Change center softkey to 'Add'
+        rightSoftkey.textContent = 'Delete'; // Change right softkey to 'Delete'
+      }
+
+      // Close input
+      function closeInput() {
+        inputContainer.style.display = 'none'; // Hide input container
+        newTaskInput.value = ''; // Clear input
+        inputOpen = false; // Mark input as closed
+        leftSoftkey.textContent = 'Add'; // Reset softkey text
+      }
+
+      // Open settings input
+      function openSettingsInput() {
+        settingsInputContainer.style.display = 'block'; // Show settings input container
+        settingsInput.focus(); // Focus the settings input
+        settingsInputOpen = true; // Mark settings input as open
+        leftSoftkey.textContent = 'Close'; // Change left softkey to 'Close'
+        centerSoftkey.textContent = 'Select'; // Change center softkey to 'Select';
+        rightSoftkey.textContent = 'Delete'; // Change right softkey to 'Delete';
+      }
+
+      // Close settings input
+      function closeSettingsInput() {
+        settingsInputContainer.style.display = 'none'; // Hide settings input container
+        settingsInput.value = ''; // Clear input
+        settingsInputOpen = false; // Mark settings input as closed
+        leftSoftkey.textContent = 'Add'; // Reset softkey text
+      }
+
+      // Change tasks per page from settings input
+      function changeTasksPerPage() {
+        const newTasksPerPage = parseInt(settingsInput.value.trim());
+        if (!isNaN(newTasksPerPage) && newTasksPerPage > 0) {
+          tasksPerPage = newTasksPerPage; // Update tasks per page
+          settingsInput.value = ''; // Clear the settings input
+          closeSettingsInput(); // Close settings input
+          saveTasks(); // Save tasks after changing settings
+          renderTasks(); // Re-render tasks to reflect the change
         }
       }
 
       // Delete task
       function deleteTask() {
         if (selectedTaskIndex >= 0 && todoList.children[selectedTaskIndex]) {
-          todoList.children[selectedTaskIndex].remove();
-          selectedTaskIndex = Math.min(selectedTaskIndex, todoList.children.length - 1);
-          updateSelectedTask();
-          saveTasks(); // Save tasks after deleting a task
+          const taskIndex = selectedTaskIndex + (currentPage - 1) * tasksPerPage;
+          if (allTasks[taskIndex].text !== "Settings") { // Prevent deleting "Settings"
+            allTasks.splice(taskIndex, 1); // Remove selected task
+            selectedTaskIndex = Math.min(selectedTaskIndex, todoList.children.length - 1);
+            updateSelectedTask();
+            saveTasks(); // Save tasks after deleting a task
+            renderTasks(); // Re-render tasks
+          }
         }
       }
 
-      // Navigate tasks
-      function navigateTasks(direction) {
-        if (inputSelected && direction === -1 && todoList.children.length > 0) {
-          inputSelected = false;
-          selectedTaskIndex = todoList.children.length - 1;
-        } else if (!inputSelected && direction === 1 && selectedTaskIndex === todoList.children.length - 1) {
-          inputSelected = true;
-          selectedTaskIndex = -1;
-        } else if (!inputSelected) {
-          selectedTaskIndex = (selectedTaskIndex + direction + todoList.children.length) % todoList.children.length;
+      // Switch pages
+      function switchPage(direction) {
+        const totalPages = Math.ceil(allTasks.length / tasksPerPage); // Include "Settings" in count
+        if (direction === 1 && currentPage < totalPages) {
+          currentPage++;
+        } else if (direction === -1 && currentPage > 1) {
+          currentPage--;
         }
-        updateSelectedTask();
+        renderTasks();
       }
 
       // Event listener for softkeys and navigation
       window.addEventListener('keydown', function (e) {
         switch (e.key) {
           case 'SoftLeft':
-            addTask();
+            if (inputOpen) {
+              closeInput(); // Close input if it's open
+            } else if (settingsInputOpen) {
+              closeSettingsInput(); // Close settings input if it's open
+            } else {
+              openInput(); // Open the task input
+            }
             break;
           case 'SoftRight':
-            deleteTask(); // Delete task with right soft key
+            if (settingsInputOpen) {
+              closeSettingsInput(); // Close settings input if it's open
+            } else {
+              deleteTask(); // Delete task with right soft key
+            }
             break;
           case 'ArrowUp':
-            navigateTasks(-1);
+            if (!inputOpen && !settingsInputOpen) {
+              navigateTasks(-1); // Navigate up if input is closed
+            }
             break;
           case 'ArrowDown':
-            navigateTasks(1);
+            if (!inputOpen && !settingsInputOpen) {
+              navigateTasks(1); // Navigate down if input is closed
+            }
             break;
           case 'Enter':
-            selectTask(); // Select the task when the center key is pressed
+            if (inputOpen) {
+              addTask(); // Add the task when Enter is pressed
+            } else if (settingsInputOpen) {
+              changeTasksPerPage(); // Change tasks per page when settings input is submitted
+            } else {
+              selectTask(); // Select the task when the center key is pressed
+            }
+            break;
+          case 'ArrowRight':
+            switchPage(1); // Switch to the next page
+            break;
+          case 'ArrowLeft':
+            switchPage(-1); // Switch to the previous page
             break;
         }
       });
+
+      // Navigate tasks
+      function navigateTasks(direction) {
+        const maxIndex = Math.min(tasksPerPage, todoList.children.length);
+        selectedTaskIndex = (selectedTaskIndex + direction + maxIndex) % maxIndex;
+        updateSelectedTask();
+      }
 
       // Initial load of tasks from localStorage
       loadTasks();
